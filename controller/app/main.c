@@ -64,21 +64,417 @@
 //   November 2016
 //   Built with IAR Embedded Workbench v6.50.0 & Code Composer Studio v6.2.0
 //******************************************************************************
-#include <msp430.h>
+//#include <msp430.h>
 
-int main(void)
-{
-    WDTCTL = WDTPW | WDTHOLD;               // Stop watchdog timer
-    
-    P1OUT &= ~BIT0;                         // Clear P1.0 output latch for a defined power-on state
-    P1DIR |= BIT0;                          // Set P1.0 to output direction
+//int main(void)
+//{
+//    WDTCTL = WDTPW | WDTHOLD;               // Stop watchdog timer
 
-    PM5CTL0 &= ~LOCKLPM5;                   // Disable the GPIO power-on default high-impedance mode
+    //P1OUT &= ~BIT0;                         // Clear P1.0 output latch for a defined power-on state
+    //P1DIR |= BIT0;                          // Set P1.0 to output direction
+
+//    PM5CTL0 &= ~LOCKLPM5;                   // Disable the GPIO power-on default high-impedance mode
                                             // to activate previously configured port settings
 
-    while(1)
-    {
-        P1OUT ^= BIT0;                      // Toggle P1.0 using exclusive-OR
-        __delay_cycles(100000);             // Delay for 100000*(1/MCLK)=0.1s
+//    while(1)
+  //  {
+        //P1OUT ^= BIT0;                      // Toggle P1.0 using exclusive-OR
+    //    __delay_cycles(100000);             // Delay for 100000*(1/MCLK)=0.1s
+    //}
+//}
+#include <msp430.h>
+
+#define RS BIT2  // P1.2 -> RS (Registro de selección)
+#define EN BIT3  // P1.3 -> Enable
+#define D4 BIT4  // P1.4 -> Data bit 4
+#define D5 BIT5  // P1.5 -> Data bit 5
+#define D6 BIT6  // P1.6 -> Data bit 6
+#define D7 BIT7  // P1.7 -> Data bit 7
+#define COL 4
+#define ROW 4
+
+void pulseEnable() {
+    P1OUT |= EN;             // Establecer Enable en 1
+    __delay_cycles(1000);    // Retardo
+    P1OUT &= ~EN;            // Establecer Enable en 0
+    __delay_cycles(1000);    // Retardo
+}
+
+void sendNibble(unsigned char nibble) {
+    P1OUT &= ~(D4 | D5 | D6 | D7);  // Limpiar los bits de datos
+    P1OUT |= ((nibble & 0x0F) << 4);  // Cargar el nibble en los bits correspondientes (P1.4 a P1.7)
+    pulseEnable();  // Pulsar Enable para enviar datos
+}
+
+void sendCommand(unsigned char cmd) {
+    P1OUT &= ~RS;   // Modo comando
+    sendNibble(cmd >> 4);  // Enviar los 4 bits más significativos
+    sendNibble(cmd);  // Enviar los 4 bits menos significativos
+    __delay_cycles(4000); // Retardo para asegurarse de que el comando se procese
+}
+
+void debounce() {
+    volatile unsigned int i;
+    for (i = 20000; i > 0; i--) {}
+}
+
+void InitializePorts_KeyPad() 
+{
+    // Set rows as inputs (with pull-up)
+    P6DIR &= ~0x0F;   // P6.0, P6.1, P6.2, P6.3 as inputs
+    P6REN |= 0x0F;    // Activate pull-up
+    P6OUT |= 0x0F;    // Activate pull-up in rows
+    
+    // Set columns as outputs
+    P5DIR |= BIT0 | BIT1 | BIT2 | BIT3; // Set P5.0, P5.1, P5.2, P5.3 as outputs
+    P5OUT &= ~(BIT0 | BIT1 | BIT2 | BIT3);  // Set low the pins P5.0, P5.1, P5.2, P5.3
+}
+
+char keypad[ROW][COL] = {
+    {'1', '2', '3', 'A'},
+    {'4', '5', '6', 'B'},
+    {'7', '8', '9', 'C'},
+    {'*', '0', '#', 'D'}
+};
+
+char System_Unlocking(void)
+{
+    int row, col;
+
+    // Go through 4 columns
+    for (col = 0; col < 4; col++) {
+        // Put column down (active)
+        P5OUT &= ~(1 << col);   // P5.0, P5.1, P5.2, P5.3
+        __delay_cycles(1000);  // Little stop to stabilize the signal
+
+        // Go through 4 rows
+        for (row = 0; row < 4; row++) {
+            if ((P6IN & (1 << row)) == 0) {  // We detect that the row is low
+                debounce();  // Wait to filter the bouncing
+                if ((P6IN & (1 << row)) == 0) {  // Confirm that the key is pressed
+                    char key = keypad[row][col];
+                    // Wait until the key is released to avoid multiple readings 
+                    while ((P6IN & (1 << row)) == 0);
+                    // Deactivate the column before returning
+                    P5OUT |= (1 << col);                    
+                    return key;
+                }
+            }
+        }
+        // Put the column high (deactivated)
+        P5OUT |= (1 << col);
+    }
+
+    return 0; // No key pressed
+}
+
+unsigned char cursorState = 0;  // 0 = OFF, 1 = ON
+void toggleCursor() {
+    
+    cursorState ^= 1;  // Alternar entre 0 y 1 usando XOR
+
+    if (cursorState) {
+        sendCommand(0x0E);  // Display ON, Cursor ON
+    } else {
+        sendCommand(0x0C);  // Display ON, Cursor OFF
     }
 }
+
+unsigned char cursorBlinkState = 0;
+void toggleBlinkCursor() {
+    cursorBlinkState ^= 1;  // Alternar entre 0 y 1 usando XOR
+
+    if (cursorBlinkState) {
+        sendCommand(0x0F);  // Cursor ON con parpadeo
+    } else {
+        sendCommand(0x0E);  // Cursor ON sin parpadeo
+    }
+}
+
+
+
+void sendData(unsigned char data) {
+    P1OUT |= RS;    // Modo datos
+    sendNibble(data >> 4);  // Enviar los 4 bits más significativos
+    sendNibble(data & 0x0F);  // Enviar los 4 bits menos significativos (corregido)
+    __delay_cycles(4000); // Retardo para procesar los datos
+}
+
+void lcdInit() {
+    P1DIR |= RS | EN | D4 | D5 | D6 | D7; // Configurar los pines como salida
+    P1OUT &= ~(RS | EN | D4 | D5 | D6 | D7); // Limpiar los pines
+
+    __delay_cycles(50000);  // Retardo de inicio
+    sendNibble(0x03);  // Inicialización del LCD
+    __delay_cycles(5000);  // Retardo
+    sendNibble(0x03);  // Repetir la inicialización
+    __delay_cycles(200);  // Retardo
+    sendNibble(0x03);  // Repetir la inicialización
+    sendNibble(0x02);  // Establecer modo de 4 bits
+
+    sendCommand(0x28);  // Configurar LCD: 4 bits, 2 líneas, 5x8
+    sendCommand(0x0C);  // Encender display, apagar cursor
+    sendCommand(0x06);  // Modo de escritura automática
+    sendCommand(0x01);  // Limpiar la pantalla
+    __delay_cycles(2000); // Esperar para limpiar la pantalla
+}
+
+void lcdSetCursor(unsigned char position) {
+    sendCommand(0x80 | position);  // Establecer la dirección del cursor en la DDRAM
+}
+
+int main() {
+    char key_unlocked;
+    int unlocked;
+    WDTCTL = WDTPW | WDTHOLD;  // Detener el watchdog
+    PM5CTL0 &= ~LOCKLPM5;
+
+    //----------------------------------------WRITE THINGS ON THE LCD SCREEN------------------------------------------------------------
+    lcdInit();  // Inicializar el LCD
+          
+    //lcdSetCursor(0x00);  // Mover el cursor a la posición 0x00
+    //sendData('A');       // Mostrar la letra 'A'
+
+    //lcdSetCursor(0x01);  // Mover el cursor a la posición 0x01
+    //sendData('B');       // Mostrar la letra 'b'
+
+
+    //-----------------------------------------------LCD + KEYPAD-------------------------------------------------------------------------
+    InitializePorts_KeyPad();  //Initialize KeyPad
+    
+    unlocked=1;
+    while (unlocked==1) 
+    {
+        key_unlocked=System_Unlocking();
+        switch (key_unlocked) 
+        {
+            case 'C':
+            toggleCursor();
+            break;
+
+            case '9':
+            toggleBlinkCursor();
+            break;
+
+            case '0':
+                sendCommand(0x01);
+                 __delay_cycles(2000);
+                lcdSetCursor(0x00);  // Mover el cursor a la posición 0x00
+                sendData('S');       // Mostrar la letra 'S'
+                lcdSetCursor(0x01);  // Mover el cursor a la posición 0x00
+                sendData('T');       // Mostrar la letra 'T'
+                lcdSetCursor(0x02);  // Mover el cursor a la posición 0x00
+                sendData('A');       // Mostrar la letra 'A'
+                lcdSetCursor(0x03);  // Mover el cursor a la posición 0x00
+                sendData('T');       // Mostrar la letra 'T'
+                lcdSetCursor(0x04);  // Mover el cursor a la posición 0x00
+                sendData('I');       // Mostrar la letra 'T'
+                lcdSetCursor(0x05);  // Mover el cursor a la posición 0x00
+                sendData('C');       // Mostrar la letra 'T'
+            break;
+
+            case '1':
+                sendCommand(0x01);
+                 __delay_cycles(2000);
+                lcdSetCursor(0x00);  // Mover el cursor a la posición 0x00
+                sendData('T');       // Mostrar la letra 'S'
+                lcdSetCursor(0x01);  // Mover el cursor a la posición 0x00
+                sendData('O');       // Mostrar la letra 'T'
+                lcdSetCursor(0x02);  // Mover el cursor a la posición 0x00
+                sendData('G');       // Mostrar la letra 'A'
+                lcdSetCursor(0x03);  // Mover el cursor a la posición 0x00
+                sendData('G');       // Mostrar la letra 'T'
+                lcdSetCursor(0x04);  // Mover el cursor a la posición 0x00
+                sendData('L');       // Mostrar la letra 'T'
+                lcdSetCursor(0x05);  // Mover el cursor a la posición 0x00
+                sendData('E');       // Mostrar la letra 'T'
+                //SHOW PERIOD
+                lcdSetCursor(0x40);  // Mover el cursor a la posición 0x00
+                sendData('P');       // Mostrar la letra 'S'
+                lcdSetCursor(0x41);  // Mover el cursor a la posición 0x00
+                sendData('E');       // Mostrar la letra 'T'
+                lcdSetCursor(0x42);  // Mover el cursor a la posición 0x00
+                sendData('R');       // Mostrar la letra 'T'
+                lcdSetCursor(0x43);  // Mover el cursor a la posición 0x00
+                sendData('I');       // Mostrar la letra 'T'
+                lcdSetCursor(0x44);  // Mover el cursor a la posición 0x00
+                sendData('O');       // Mostrar la letra 'T'
+                lcdSetCursor(0x45);  // Mover el cursor a la posición 0x00
+                sendData('D');       // Mostrar la letra 'T'
+               
+                lcdSetCursor(0x47);  // Mover el cursor a la posición 0x00
+                sendData('=');       // Mostrar la letra 'T'
+                
+                lcdSetCursor(0x49);  // Mover el cursor a la posición 0x00
+                sendData('0');       // Mostrar la letra 'T' 
+                lcdSetCursor(0x4A);  // Mover el cursor a la posición 0x00
+                sendData('.');       // Mostrar la letra 'T'
+                lcdSetCursor(0x4B);  // Mover el cursor a la posición 0x00
+                sendData('2');       // Mostrar la letra 'T' 
+                lcdSetCursor(0x4C);  // Mover el cursor a la posición 0x00
+                sendData('5');       // Mostrar la letra 'T' 
+            break;        
+
+            case '2':
+                sendCommand(0x01);
+                 __delay_cycles(2000);
+                lcdSetCursor(0x00);  // Mover el cursor a la posición 0x00
+                sendData('U');       // Mostrar la letra 'S'
+                lcdSetCursor(0x01);  // Mover el cursor a la posición 0x00
+                sendData('P');       // Mostrar la letra 'T'
+                
+                lcdSetCursor(0x03);  // Mover el cursor a la posición 0x00
+                sendData('C');       // Mostrar la letra 'T'
+                lcdSetCursor(0x04);  // Mover el cursor a la posición 0x00
+                sendData('O');       // Mostrar la letra 'T'
+                lcdSetCursor(0x05);  // Mover el cursor a la posición 0x00
+                sendData('U');       // Mostrar la letra 'T'
+                lcdSetCursor(0x06);  // Mover el cursor a la posición 0x00
+                sendData('N');       // Mostrar la letra 'S'
+                lcdSetCursor(0x07);  // Mover el cursor a la posición 0x00
+                sendData('T');       // Mostrar la letra 'T'
+                lcdSetCursor(0x08);  // Mover el cursor a la posición 0x00
+                sendData('E');       // Mostrar la letra 'A'
+                lcdSetCursor(0x09);  // Mover el cursor a la posición 0x00
+                sendData('R');       // Mostrar la letra 'T'  
+            break;
+
+            case '3':
+                sendCommand(0x01);
+                 __delay_cycles(2000);
+                lcdSetCursor(0x00);  // Mover el cursor a la posición 0x00
+                sendData('I');       // Mostrar la letra 'S'
+                lcdSetCursor(0x01);  // Mover el cursor a la posición 0x00
+                sendData('N');       // Mostrar la letra 'T'
+                
+                lcdSetCursor(0x03);  // Mover el cursor a la posición 0x00
+                sendData('A');       // Mostrar la letra 'T'
+                lcdSetCursor(0x04);  // Mover el cursor a la posición 0x00
+                sendData('N');       // Mostrar la letra 'T'
+                lcdSetCursor(0x05);  // Mover el cursor a la posición 0x00
+                sendData('D');       // Mostrar la letra 'T'
+                
+                lcdSetCursor(0x07);  // Mover el cursor a la posición 0x00
+                sendData('O');       // Mostrar la letra 'T'
+                lcdSetCursor(0x08);  // Mover el cursor a la posición 0x00
+                sendData('U');       // Mostrar la letra 'A'
+                lcdSetCursor(0x09);  // Mover el cursor a la posición 0x00
+                sendData('T');       // Mostrar la letra 'T'  
+            break;
+
+            case '4':
+                sendCommand(0x01);
+                 __delay_cycles(2000);
+                lcdSetCursor(0x00);  // Mover el cursor a la posición 0x00
+                sendData('D');       // Mostrar la letra 'S'
+                lcdSetCursor(0x01);  // Mover el cursor a la posición 0x00
+                sendData('O');       // Mostrar la letra 'T'
+                lcdSetCursor(0x02);  // Mover el cursor a la posición 0x00
+                sendData('W');       // Mostrar la letra 'T'
+                lcdSetCursor(0x03);  // Mover el cursor a la posición 0x00
+                sendData('N');       // Mostrar la letra 'T'
+                
+                lcdSetCursor(0x05);  // Mover el cursor a la posición 0x00
+                sendData('C');       // Mostrar la letra 'T'
+                lcdSetCursor(0x06);  // Mover el cursor a la posición 0x00
+                sendData('O');       // Mostrar la letra 'T'
+                lcdSetCursor(0x07);  // Mover el cursor a la posición 0x00
+                sendData('U');       // Mostrar la letra 'T'
+                lcdSetCursor(0x08);  // Mover el cursor a la posición 0x00
+                sendData('N');       // Mostrar la letra 'A'
+                lcdSetCursor(0x09);  // Mover el cursor a la posición 0x00
+                sendData('T');       // Mostrar la letra 'T' 
+                lcdSetCursor(0x0A);  // Mover el cursor a la posición 0x00
+                sendData('E');       // Mostrar la letra 'T'
+                lcdSetCursor(0x0B);  // Mover el cursor a la posición 0x00
+                sendData('R');       // Mostrar la letra 'T' 
+            break;
+
+            case '5':
+                sendCommand(0x01);
+                 __delay_cycles(2000);
+                lcdSetCursor(0x00);  // Mover el cursor a la posición 0x00
+                sendData('R');       // Mostrar la letra 'S'
+                lcdSetCursor(0x01);  // Mover el cursor a la posición 0x00
+                sendData('O');       // Mostrar la letra 'T'
+                lcdSetCursor(0x02);  // Mover el cursor a la posición 0x00
+                sendData('T');       // Mostrar la letra 'T'
+                lcdSetCursor(0x03);  // Mover el cursor a la posición 0x00
+                sendData('A');       // Mostrar la letra 'T'
+                lcdSetCursor(0x04);  // Mover el cursor a la posición 0x00
+                sendData('T');       // Mostrar la letra 'T'
+                lcdSetCursor(0x05);  // Mover el cursor a la posición 0x00
+                sendData('E');       // Mostrar la letra 'T'
+               
+                lcdSetCursor(0x07);  // Mover el cursor a la posición 0x00
+                sendData('1');       // Mostrar la letra 'T'
+                
+                lcdSetCursor(0x09);  // Mover el cursor a la posición 0x00
+                sendData('L');       // Mostrar la letra 'T' 
+                lcdSetCursor(0x0A);  // Mover el cursor a la posición 0x00
+                sendData('E');       // Mostrar la letra 'T'
+                lcdSetCursor(0x0B);  // Mover el cursor a la posición 0x00
+                sendData('F');       // Mostrar la letra 'T' 
+                lcdSetCursor(0x0C);  // Mover el cursor a la posición 0x00
+                sendData('T');       // Mostrar la letra 'T' 
+            break;
+
+            case '6':
+                sendCommand(0x01);
+                 __delay_cycles(2000);
+                lcdSetCursor(0x00);  // Mover el cursor a la posición 0x00
+                sendData('R');       // Mostrar la letra 'S'
+                lcdSetCursor(0x01);  // Mover el cursor a la posición 0x00
+                sendData('O');       // Mostrar la letra 'T'
+                lcdSetCursor(0x02);  // Mover el cursor a la posición 0x00
+                sendData('T');       // Mostrar la letra 'T'
+                lcdSetCursor(0x03);  // Mover el cursor a la posición 0x00
+                sendData('A');       // Mostrar la letra 'T'
+                lcdSetCursor(0x04);  // Mover el cursor a la posición 0x00
+                sendData('T');       // Mostrar la letra 'T'
+                lcdSetCursor(0x05);  // Mover el cursor a la posición 0x00
+                sendData('E');       // Mostrar la letra 'T'
+               
+                lcdSetCursor(0x07);  // Mover el cursor a la posición 0x00
+                sendData('7');       // Mostrar la letra 'T'
+                
+                lcdSetCursor(0x09);  // Mover el cursor a la posición 0x00
+                sendData('R');       // Mostrar la letra 'T' 
+                lcdSetCursor(0x0A);  // Mover el cursor a la posición 0x00
+                sendData('I');       // Mostrar la letra 'T'
+                lcdSetCursor(0x0B);  // Mover el cursor a la posición 0x00
+                sendData('G');       // Mostrar la letra 'T' 
+                lcdSetCursor(0x0C);  // Mover el cursor a la posición 0x00
+                sendData('H');       // Mostrar la letra 'T' 
+                lcdSetCursor(0x0D);  // Mover el cursor a la posición 0x00
+                sendData('T');       // Mostrar la letra 'T' 
+            break;
+
+            case '7':
+                sendCommand(0x01);
+                 __delay_cycles(2000);
+                lcdSetCursor(0x00);  // Mover el cursor a la posición 0x00
+                sendData('F');       // Mostrar la letra 'S'
+                lcdSetCursor(0x01);  // Mover el cursor a la posición 0x00
+                sendData('I');       // Mostrar la letra 'T'
+                lcdSetCursor(0x02);  // Mover el cursor a la posición 0x00
+                sendData('L');       // Mostrar la letra 'T'
+                lcdSetCursor(0x03);  // Mover el cursor a la posición 0x00
+                sendData('L');       // Mostrar la letra 'T'
+                
+                lcdSetCursor(0x05);  // Mover el cursor a la posición 0x00
+                sendData('L');       // Mostrar la letra 'T'
+                lcdSetCursor(0x06);  // Mover el cursor a la posición 0x00
+                sendData('E');       // Mostrar la letra 'T'
+                lcdSetCursor(0x07);  // Mover el cursor a la posición 0x00
+                sendData('F');       // Mostrar la letra 'T'
+                lcdSetCursor(0x08);  // Mover el cursor a la posición 0x00
+                sendData('T');       // Mostrar la letra 'A'
+            break;
+        }
+        // SHOW LAST PRESSED KEY - RIGHT BOTTOM CORNER 
+    }
+    while (1);  // Bucle infinito para mantener el programa corriendo
+}
+
+
