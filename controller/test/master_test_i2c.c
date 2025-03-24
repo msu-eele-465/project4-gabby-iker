@@ -2,7 +2,7 @@
 #include <msp430.h>
 
 int Data_Cnt = 0;                           // Set initially zero data packets sent
-char Packet[] = {'1', '2', '3'};   // Create an array for the data to be sent
+char Packet[] = {'1', '2', '3'};            // Create an array for the data to be sent
 
 int main(void)
 {
@@ -62,3 +62,4 @@ __interrupt void EUSCI_B1_I2C_ISR(void){
         Data_Cnt++;
     }
 }
+
