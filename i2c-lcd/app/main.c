@@ -64,3 +64,174 @@
 //   July 2015
 //   Built with IAR Embedded Workbench v6.30 & Code Composer Studio v6.1 
 //******************************************************************************
+
+#include <msp430.h>
+
+
+// Puerto 2
+#define RS BIT0     // P2.0
+#define EN BIT6     // P2.6
+
+// Puerto 1
+#define D4 BIT4     // P1.4
+#define D5 BIT5     // P1.5
+#define D6 BIT6     // P1.6
+#define D7 BIT7     // P1.7
+
+void sendData(unsigned char data) {
+    P2OUT |= RS;    // Modo datos
+    sendNibble(data >> 4);  // Enviar los 4 bits más significativos
+    sendNibble(data & 0x0F);  // Enviar los 4 bits menos significativos (corregido)
+    __delay_cycles(4000); // Retardo para procesar los datos
+}
+
+void sendNibble(unsigned char nibble) {
+    P1OUT &= ~(D4 | D5 | D6 | D7);  // Limpiar los bits de datos
+    P1OUT |= ((nibble & 0x0F) << 4);  // Cargar el nibble en los bits correspondientes (P1.4 a P1.7)
+    pulseEnable();  // Pulsar Enable para enviar datos
+}
+
+void pulseEnable() {
+    P2OUT |= EN;             // Establecer Enable en 1
+    __delay_cycles(1000);    // Retardo
+    P2OUT &= ~EN;            // Establecer Enable en 0
+    __delay_cycles(1000);    // Retardo
+}
+
+void sendCommand(unsigned char cmd) {
+    P2OUT &= ~RS;   // Modo comando
+    sendNibble(cmd >> 4);  // Enviar los 4 bits más significativos
+    sendNibble(cmd);  // Enviar los 4 bits menos significativos
+    __delay_cycles(4000); // Retardo para asegurarse de que el comando se procese
+}
+
+unsigned char cursorState = 0;  // 0 = OFF, 1 = ON
+void toggleCursor() {
+    
+    cursorState ^= 1;  // Alternar entre 0 y 1 usando XOR
+
+    if (cursorState) {
+        sendCommand(0x0E);  // Display ON, Cursor ON
+    } else {
+        sendCommand(0x0C);  // Display ON, Cursor OFF
+    }
+}
+
+unsigned char cursorBlinkState = 0;
+void toggleBlinkCursor() {
+    cursorBlinkState ^= 1;  // Alternar entre 0 y 1 usando XOR
+
+    if (cursorBlinkState) {
+        sendCommand(0x0F);  // Cursor ON con parpadeo
+    } else {
+        sendCommand(0x0E);  // Cursor ON sin parpadeo
+    }
+}
+
+void lcdInit() {
+    // Configurar pines como salida
+    P1DIR |= D4 | D5 | D6 | D7;
+    P2DIR |= RS | EN;
+
+    // Limpiar salidas
+    P1OUT &= ~(D4 | D5 | D6 | D7);
+    P2OUT &= ~(RS | EN);
+    __delay_cycles(50000);  // Retardo de inicio
+    sendNibble(0x03);  // Inicialización del LCD
+    __delay_cycles(5000);  // Retardo
+    sendNibble(0x03);  // Repetir la inicialización
+    __delay_cycles(200);  // Retardo
+    sendNibble(0x03);  // Repetir la inicialización
+    sendNibble(0x02);  // Establecer modo de 4 bits
+
+    sendCommand(0x28);  // Configurar LCD: 4 bits, 2 líneas, 5x8
+    sendCommand(0x0C);  // Encender display, apagar cursor
+    sendCommand(0x06);  // Modo de escritura automática
+    sendCommand(0x01);  // Limpiar la pantalla
+    __delay_cycles(2000); // Esperar para limpiar la pantalla
+}
+
+void lcdSetCursor(unsigned char position) {
+    sendCommand(0x80 | position);  // Establecer la dirección del cursor en la DDRAM
+}
+
+void lcdPrint(const char* str, unsigned char startPos) {
+    lcdSetCursor(startPos);
+    while (*str) {
+        sendData(*str++);
+        startPos++;
+        if (startPos == 0x10) startPos = 0x40;  // Salto automático a segunda línea
+    }
+}
+
+int main() {
+    char key_unlocked;
+    WDTCTL = WDTPW | WDTHOLD;  // Detener el watchdog
+    PM5CTL0 &= ~LOCKLPM5;
+
+    lcdInit();  // Inicializar el LCD
+        
+    switch (key_unlocked) 
+    { 
+        case 'C':
+        toggleCursor();
+        break;
+
+        case '9':
+        toggleBlinkCursor();
+        break;
+
+        case '0':
+        sendCommand(0x01);
+        __delay_cycles(2000);
+        lcdPrint("STATIC", 0x00);
+        break;
+
+        case '1':
+        sendCommand(0x01);
+        __delay_cycles(2000);
+        lcdPrint("TOGGLE", 0x00);
+        lcdPrint("PERIOD=0.25", 0x40);
+        break;
+
+        case '2':
+        sendCommand(0x01);
+        __delay_cycles(2000);
+        lcdPrint("UP", 0x00);
+        lcdPrint("COUNTER", 0x03);
+        break;
+
+        case '3':
+        sendCommand(0x01);
+        __delay_cycles(2000);
+        lcdPrint("IN", 0x00);
+        lcdPrint("ANDOUT", 0x03);
+        break;
+
+        case '4':
+        sendCommand(0x01);
+        __delay_cycles(2000);
+        lcdPrint("DOWN", 0x00);
+        lcdPrint("COUNTER", 0x05);
+        break;
+
+        case '5':
+        sendCommand(0x01);
+        __delay_cycles(2000);
+        lcdPrint("ROTATE 1 LEFT", 0x00);
+        break;
+
+        case '6':
+        sendCommand(0x01);
+        __delay_cycles(2000);
+        lcdPrint("ROTATE 7 RIGHT", 0x00);
+        break;
+
+        case '7':
+        sendCommand(0x01);
+        __delay_cycles(2000);
+        lcdPrint("FILL", 0x00);
+        lcdPrint("LEFT", 0x05);
+        break;
+    }
+}

@@ -192,7 +192,6 @@ void toggleBlinkCursor() {
 }
 
 
-
 void sendData(unsigned char data) {
     P1OUT |= RS;    // Modo datos
     sendNibble(data >> 4);  // Enviar los 4 bits más significativos
@@ -223,32 +222,96 @@ void lcdSetCursor(unsigned char position) {
     sendCommand(0x80 | position);  // Establecer la dirección del cursor en la DDRAM
 }
 
+void lcdPrint(const char* str, unsigned char startPos) {
+    lcdSetCursor(startPos);
+    while (*str) {
+        sendData(*str++);
+        startPos++;
+        if (startPos == 0x10) startPos = 0x40;  // Salto automático a segunda línea
+    }
+}
+
+
 int main() {
     char key_unlocked;
     int unlocked;
     WDTCTL = WDTPW | WDTHOLD;  // Detener el watchdog
     PM5CTL0 &= ~LOCKLPM5;
 
-    //----------------------------------------WRITE THINGS ON THE LCD SCREEN------------------------------------------------------------
     lcdInit();  // Inicializar el LCD
-          
-    //lcdSetCursor(0x00);  // Mover el cursor a la posición 0x00
-    //sendData('A');       // Mostrar la letra 'A'
-
-    //lcdSetCursor(0x01);  // Mover el cursor a la posición 0x01
-    //sendData('B');       // Mostrar la letra 'b'
-
-
-    //-----------------------------------------------LCD + KEYPAD-------------------------------------------------------------------------
     InitializePorts_KeyPad();  //Initialize KeyPad
+    
     
     unlocked=1;
     while (unlocked==1) 
     {
         key_unlocked=System_Unlocking();
         switch (key_unlocked) 
-        {
-            case 'C':
+        { 
+
+        case 'C':
+        toggleCursor();
+        break;
+
+        case '9':
+        toggleBlinkCursor();
+        break;
+
+        case '0':
+        sendCommand(0x01);
+        __delay_cycles(2000);
+        lcdPrint("STATIC", 0x00);
+        break;
+
+        case '1':
+        sendCommand(0x01);
+        __delay_cycles(2000);
+        lcdPrint("TOGGLE", 0x00);
+        lcdPrint("PERIOD=0.25", 0x40);
+        break;
+
+        case '2':
+        sendCommand(0x01);
+        __delay_cycles(2000);
+        lcdPrint("UP", 0x00);
+        lcdPrint("COUNTER", 0x03);
+        break;
+
+        case '3':
+        sendCommand(0x01);
+        __delay_cycles(2000);
+        lcdPrint("IN", 0x00);
+        lcdPrint("ANDOUT", 0x03);
+        break;
+
+        case '4':
+        sendCommand(0x01);
+        __delay_cycles(2000);
+        lcdPrint("DOWN", 0x00);
+        lcdPrint("COUNTER", 0x05);
+        break;
+
+        case '5':
+        sendCommand(0x01);
+        __delay_cycles(2000);
+        lcdPrint("ROTATE 1 LEFT", 0x00);
+        break;
+
+        case '6':
+        sendCommand(0x01);
+        __delay_cycles(2000);
+        lcdPrint("ROTATE 7 RIGHT", 0x00);
+        break;
+
+        case '7':
+        sendCommand(0x01);
+        __delay_cycles(2000);
+        lcdPrint("FILL", 0x00);
+        lcdPrint("LEFT", 0x05);
+        break;
+
+
+            /*case 'C':
             toggleCursor();
             break;
 
@@ -471,6 +534,7 @@ int main() {
                 lcdSetCursor(0x08);  // Mover el cursor a la posición 0x00
                 sendData('T');       // Mostrar la letra 'A'
             break;
+            */
         }
         // SHOW LAST PRESSED KEY - RIGHT BOTTOM CORNER 
     }
