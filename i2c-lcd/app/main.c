@@ -38,6 +38,12 @@ void I2C_Slave_Init(void)
     __enable_interrupt();               // Enable Maskable IRQs
 }
 
+void pulseEnable() {
+    P2OUT |= EN;             // Establecer Enable en 1
+    __delay_cycles(1000);    // Retardo
+    P2OUT &= ~EN;            // Establecer Enable en 0
+    __delay_cycles(1000);    // Retardo
+}
 
 void sendNibble(unsigned char nibble) {
     P1OUT &= ~(D4 | D5 | D6 | D7);  // Limpiar los bits de datos
@@ -50,15 +56,6 @@ void sendData(unsigned char data) {
     sendNibble(data >> 4);  // Enviar los 4 bits más significativos
     sendNibble(data & 0x0F);  // Enviar los 4 bits menos significativos (corregido)
     __delay_cycles(4000); // Retardo para procesar los datos
-}
-
-
-
-void pulseEnable() {
-    P2OUT |= EN;             // Establecer Enable en 1
-    __delay_cycles(1000);    // Retardo
-    P2OUT &= ~EN;            // Establecer Enable en 0
-    __delay_cycles(1000);    // Retardo
 }
 
 void sendCommand(unsigned char cmd) {
