@@ -130,7 +130,7 @@ void led_patterns(char key_cur)
                 ledPattern_state = pattern1_cur = (ledPattern_state ^= 0xFF);
             break;
         case '2':             // Up counter
-            TB1CCR0 = 0.5 * timing_base;
+            TB1CCR0 = timing_base >> 1;
             if (new_input_bool) {
                 if (key_cur == key_prev | pattern2_start == false)
                 {
@@ -144,7 +144,7 @@ void led_patterns(char key_cur)
                 ledPattern_state = pattern2_cur = (++ledPattern_state);
             break;
         case '3':             // in and out
-            TB1CCR0 = 0.5 * timing_base;
+            TB1CCR0 = timing_base >> 1;
             if (new_input_bool) {
                 if (key_cur == key_prev | pattern3_start == false)
                 {
@@ -167,7 +167,7 @@ void led_patterns(char key_cur)
             }
             break;
         case '4':             // down counter, extra credit
-            TB1CCR0 = 0.25 * timing_base;
+            TB1CCR0 = timing_base >> 2;
             if (new_input_bool) {
                 if (key_cur == key_prev | pattern4_start == false)
                 {
@@ -181,7 +181,7 @@ void led_patterns(char key_cur)
                 ledPattern_state = pattern4_cur = (--ledPattern_state);
             break;
         case '5':             // rotate one left, extra credit
-            TB1CCR0 = 1.5 * timing_base;
+            TB1CCR0 = timing_base + timing_base >> 1;
         if (new_input_bool) {
             if (key_cur == key_prev | pattern5_start == false)
                 {
@@ -195,7 +195,7 @@ void led_patterns(char key_cur)
                 ledPattern_state = pattern5_cur = (ledPattern_state = ledPattern_state << 1 | ledPattern_state >> 7);
             break;
         case '6':             // rotate 7 right, extra credit
-            TB1CCR0 = 0.5 * timing_base;
+            TB1CCR0 = timing_base >> 1;
             if (new_input_bool) {
                 if (key_cur == key_prev | pattern6_start == false)
                 {
@@ -245,12 +245,21 @@ int main(void)
 //------------------------------------------------------------------------------
 // Begin Interrupt Service Routines
 //------------------------------------------------------------------------------
+#pragma vector = TIMER1_B0_VECTOR
+__interrupt void ISR_TB1_CCR0(void)
+{
+    led_patterns(key_cur);
+    TB1CCTL0 &= ~CCIFG;
+}
+//------------------------------------------------------------------------------
 #pragma vector = USCI_B0_VECTOR
 __interrupt void USCI_B0_ISR(void)
 {
+    new_input_bool = true;
     switch (__even_in_range(UCB0IV, USCI_I2C_UCTXIFG0))
     {
         case USCI_I2C_UCRXIFG0:         // Receive Interrupt
+            key_cur = UCB0RXBUF;
             led_patterns(UCB0RXBUF);    // Read received data
             break;
         default: 

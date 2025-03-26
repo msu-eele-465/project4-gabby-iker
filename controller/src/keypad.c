@@ -1,8 +1,11 @@
 #include <msp430.h>
+#include "msp430fr2355.h"
 #include "intrinsics.h"
 #include <stdbool.h>
 #include <stdio.h>
-#include "keypad.h"
+#include "rgb_led.h"
+//#include "led_bar.h"
+#include "heartbeat.h"
 
 //KEYPAD I/O DECLARATION
 #define PROWDIR     P6DIR  // FORMERLY P1
@@ -10,7 +13,7 @@
 #define PROWIN      P6IN
 #define PROWOUT     P6OUT
 #define PCOLDIR     P5DIR   // FORMERLY P5
-#define PCOLOUT     P5IN
+#define PCOLOUT     P5OUT
 
 //CONSTANTS DECLARATION
 #define COL 4
@@ -36,36 +39,34 @@ char keypad[ROW][COL] = {
 int lockState = 3;
 
 // Function ton initialaize the ports
-void init_keypad() 
+void keypad_init() 
 {
     // Set rows as inputs (with pull-up)
-    PROWDIR &= ~0x0F;                         // P1.0, P1.1, P1.2, P1.3 as inputs
-    PROWREN |= 0x0F;                          // Activate pull-up
-    PROWOUT |= 0x0F;                          // Activate pull-up in rows
+    PROWDIR &= ~0x0F;   // P1.0, P1.1, P1.2, P1.3 as inputs
+    PROWREN |= 0x0F;    // Activate pull-up
+    P1OUT |= 0x0F;    // Activar pull-up in rows
     
     // Set columns as outputs
-    PCOLDIR |= BIT0 | BIT1 | BIT2 | BIT3;     // Set P5.0, P5.1, P5.2 y P5.3 as outputs:
+    PCOLDIR |= BIT0 | BIT1 | BIT2 | BIT3; // Set P5.0, P5.1, P5.2 y P5.3 as outputs:
     PCOLOUT &= ~(BIT0 | BIT1 | BIT2 | BIT3);  // Set down the pins P5.0, P5.1, P5.2 y P5.3:
-
-    main_keypad();
 }
 
-char System_Unlocking(void)
+char keypad_unlocking(void)
 {
     int row, col;
 
     // Go through 4 columns
     for (col = 0; col < 4; col++) {
         // Put column down (active)
-        PCOLOUT &= ~(1 << col);           // P2.0, P2.1, P2.2, P2.4
-         __delay_cycles(1000);          // Little stop to stabilize the signal
+        PCOLOUT &= ~(1 << col);   // P2.0, P2.1, P2.2, P2.4
+         __delay_cycles(1000);  // Little stop to stabilize the signal
 
         // Go through 4 rows
         for (row = 0; row < 4; row++) {
-            if ((PROWIN & (1 << row)) == 0) {         // We detect that the row is low
-                debounce();                         // Wait to filter the bouncing
-                if ((PROWIN & (1 << row)) == 0) {     // Confirm that the key is pressed
-                    continue_rgb_led(0);          // Set LED to yellow
+            if ((PROWIN & (1 << row)) == 0) {  // We detect that the row is low
+                debounce();  // Wait to filter the bouncing
+                if ((PROWIN & (1 << row)) == 0) {  // Confirm that the key is pressed
+                    continue_rgb_led(0);                // Set LED to yellow
                     char key = keypad[row][col];
                     // Wait until the key is released to avoid multiple readings 
                     while ((PROWIN & (1 << row)) == 0);
@@ -82,7 +83,7 @@ char System_Unlocking(void)
     return 0; // No key pressed
 }
 
-char System_Unlocked(void)
+char keypad_unlocked(void)
 {
     char key_unlocked = '\0';
 
@@ -126,10 +127,22 @@ char System_Unlocked(void)
 
 
 
-int main_keypad(void)
-{    
+int keypad_main(void)
+{
+    // Stop watchdog timer
+    WDTCTL = WDTPW | WDTHOLD; // Stop watchdog timer
+    
+    // Disable the GPIO power-on default high-impedance mdoe to activate
+    // previously configure port settings
+    PM5CTL0 &= ~LOCKLPM5;
+    
     int counter, i, equal;
     char introduced_password[TABLE_SIZE], key, save_digit, key_unlocked; 
+
+    keypad_init();
+    init_heartbeat();
+    init_rgb_led();
+    //init_led_bar();
       
     while(true)
     {   
@@ -141,7 +154,7 @@ int main_keypad(void)
 
      while (counter < TABLE_SIZE)
      {
-        key = System_Unlocking();
+        key = keypad_unlocking();
         if(key!=0)
         {
             introduced_password [counter] = key;
@@ -169,7 +182,7 @@ int main_keypad(void)
             {
                 introduced_password[i] = 0;        
             }
-            System_Unlocked();  // This now handles polling until 'D' is pressed
+            keypad_unlocked();  // This now handles polling until 'D' is pressed
 
 
         } 
@@ -185,5 +198,4 @@ int main_keypad(void)
             }
         }    
     }
-
 }
