@@ -5,7 +5,6 @@
 #include "C:\Users\gabri\Documents\Spring2025\EELE465\project04\project4-gabby-iker\controller\src\master_i2c.h"
 #include "C:\Users\gabri\Documents\Spring2025\EELE465\project04\project4-gabby-iker\controller\src\rgb_led.h"
 #include "C:\Users\gabri\Documents\Spring2025\EELE465\project04\project4-gabby-iker\controller\src\heartbeat.h"
-//#include "C:\Users\gabri\Documents\Spring2025\EELE465\project04\project4-gabby-iker\controller\src\keypad.h"
 
 
 
