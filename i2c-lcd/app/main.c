@@ -140,54 +140,78 @@ void display_output(char input)
         sendCommand(0x01);
         __delay_cycles(2000);
         lcdPrint("STATIC", 0x00);
+         lcdSetCursor(0x4F);
+        sendData('0');
+        lcdSetCursor(0x06);
         break;
 
         case '1':
         sendCommand(0x01);
         __delay_cycles(2000);
         lcdPrint("TOGGLE", 0x00);
-        lcdPrint("PERIOD=0.25", 0x40);
+        lcdSetCursor(0x4F);
+        sendData('1');
+        lcdSetCursor(0x06);
         break;
 
         case '2':
         sendCommand(0x01);
         __delay_cycles(2000);
-        lcdPrint("UP", 0x00);
-        lcdPrint("COUNTER", 0x03);
+        lcdPrint("UP COUNTER", 0x00);
+        lcdSetCursor(0x4F);
+        sendData('2');
+        lcdSetCursor(0x0A);
         break;
 
         case '3':
         sendCommand(0x01);
         __delay_cycles(2000);
-        lcdPrint("IN", 0x00);
-        lcdPrint("ANDOUT", 0x03);
+        lcdPrint("IN AND OUT", 0x00);
+        lcdSetCursor(0x4F);
+        sendData('3');
+        lcdSetCursor(0x0A);
         break;
 
         case '4':
         sendCommand(0x01);
         __delay_cycles(2000);
-        lcdPrint("DOWN", 0x00);
-        lcdPrint("COUNTER", 0x05);
+        lcdPrint("DOWN COUNTER", 0x00);
+        lcdSetCursor(0x4F);
+        sendData('4');
+        lcdSetCursor(0x0C);
         break;
 
         case '5':
         sendCommand(0x01);
         __delay_cycles(2000);
         lcdPrint("ROTATE 1 LEFT", 0x00);
+          lcdSetCursor(0x4F);
+        sendData('5');
+        lcdSetCursor(0x0D);
         break;
 
         case '6':
         sendCommand(0x01);
         __delay_cycles(2000);
         lcdPrint("ROTATE 7 RIGHT", 0x00);
+          lcdSetCursor(0x4F);
+        sendData('6');
+        lcdSetCursor(0x0E);
         break;
 
         case '7':
         sendCommand(0x01);
         __delay_cycles(2000);
-        lcdPrint("FILL", 0x00);
-        lcdPrint("LEFT", 0x05);
+        lcdPrint("FILL LEFT", 0x00);
+        lcdSetCursor(0x4F);
+        sendData('7');
+        lcdSetCursor(0x09);
         break;
+
+        case 'D':
+        sendCommand(0x01);
+        break;
+
     }
 }
 
