@@ -12,10 +12,10 @@ You will fill out this form:
 |----------------------------------------------------------------------------------------------------------|--------|-----------|-----------|-----------|-----------|
 | **Presentation**                                                                                         |        |           |           |           |           |
 | Introduction                                                                                             | 1      | 0         | 1         | 0         | 1         |
-| Circuit diagram                                                                                          | 2      | 1.5       | 0.5       | 1.5       | 0.5       |
+| Circuit diagram                                                                                          | 2      | 1.5       | 0.5       | 2         | 0         |
 | System architecture diagram                                                                              | 2      | 1         | 1         | 0         | 2         |
 | Controller high-level flowchart                                                                          | 1      | 0         | 1         | 0         | 1         |
-| LED peripheral high-level flowchart                                                                      | 1      | 1         | 0         | 0         | 1         |
+| LED peripheral high-level flowchart                                                                      | 1      | 1         | 0         | 1         | 0         |
 | LCD peripheral high-level flowchart                                                                      | 1      | 1         | 0         | 0         | 1         |
 | Professional demo                                                                                        | 2      | 1         | 1         | 2         | 0         |
 | **LED Patterns**                                                                                         |        |           |           |           |           |
@@ -23,7 +23,7 @@ You will fill out this form:
 | **LCD Display**                                                                                          |        |           |           |           |           |
 | LCD is blank when the system is locked                                                                   | 0.5    | 0         | 0.5       | 0.5       | 0         |
 | LCD displays current keypress when unlocked                                                              | 1      | 0         | 1         | 0         | 1         |
-| LCD displays  LED pattern name                                                                           | 2      | 0         | 2         | 0         | 1         |
+| LCD displays  LED pattern name                                                                           | 2      | 0         | 2         | 0.5       | 1.5       |
 | Pressing “C” toggles the cursor state (on or off)                                                        | 1      | 0         | 1         | 0         | 1         |
 | Pressing “9” toggles the cursor’s blink state (blinking or not blinking)                                 | 1      | 0         | 1         | 0         | 1         |
 | **Main controller**                                                                                      |        |           |           |           |           |
@@ -45,7 +45,7 @@ You will fill out this form:
 | LCD must be able to be cleared                                                                           | 1      | 0         | 1         | 1         | 0         |
 | LCD cursor can be turned on and off                                                                      | 1      | 0         | 1         | 0         | 1         |
 | LCD cursor’s blink functionality can be turned off and on                                                | 1      | 0         | 1         | 0         | 1         |
-| Total                                                                                                    | 40     | 18.5      | 21.5      | 15.5      | 22.5      |
+| Total                                                                                                    | 40     | 18.5      | 21.5      | 17.5      | 21.5      |
 
 
 ## 🚀 Extra credit points
