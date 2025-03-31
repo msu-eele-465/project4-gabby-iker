@@ -1,2 +1,2 @@
-void init_rgb_led();
-void continue_rgb_led(int lockState);
+void rgb_led_init();
+void rgb_led_continue(int lockState);

@@ -2,7 +2,11 @@
 #include <msp430.h>
 #include "master_i2c.h"
 
-char packet;
+char packet;    // Data to be sent using I2C
+
+//----------------------------------------------------------------------
+// Begin Master I2C Initialization
+//----------------------------------------------------------------------
 void master_i2c_init(void)
 {
     WDTCTL = WDTPW | WDTHOLD;               // Stop watchdog timer
@@ -15,10 +19,9 @@ void master_i2c_init(void)
     UCB1CTLW0 |= UCMODE_3;                  // Put into I2C mode
     UCB1CTLW0 |= UCMST;                     // Put into master mode
     UCB1CTLW0 |= UCTR;                      // Put into Tx mode
-    //UCB1I2CSA = 0x0068;                     // Slave address = 0x68
 
     UCB1CTLW1 |= UCASTP_2;                  // Auto STOP when UCB0TBCNT reached
-    UCB1TBCNT = 1;             // # of Bytes in Packet
+    UCB1TBCNT = 1;                          // # of Bytes in Packet
 
     P4SEL1 &= ~BIT6;                        // We want P1.2 = SDA
     P4SEL0 |= BIT6;
@@ -35,13 +38,20 @@ void master_i2c_init(void)
     __enable_interrupt();                   // Enable Maskable IRQs
     
 }
+//--End Master I2C Init-------------------------------------------------
 
+//----------------------------------------------------------------------
+// Begin Master I2C Packet
+//----------------------------------------------------------------------
 void master_i2c_packet(char input, int address)
 {
     packet = input;
-
 }
+//--End I2C Packet------------------------------------------------------
 
+//----------------------------------------------------------------------
+// Begin Master I2C Send
+//----------------------------------------------------------------------
 void master_i2c_send(char input, int address)
 {
     UCB1I2CSA = address;
@@ -49,12 +59,14 @@ void master_i2c_send(char input, int address)
     UCB1CTLW0 |= UCTXSTT;               // Generate START condition
     __delay_cycles(50000);              // delay loop
 }
+//--End Master I2C Send-------------------------------------------------
 
 //----------------------------------------------------------------------
 // Begin Interrupt Service Routine
 //----------------------------------------------------------------------
-
+// Send data from packet using I2C
 #pragma vector=EUSCI_B1_VECTOR
 __interrupt void EUSCI_B1_I2C_ISR(void){
     UCB1TXBUF = packet;
 }
+//--End Interrupt Service Routine---------------------------------------

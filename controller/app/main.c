@@ -1,3 +1,13 @@
+/*
+ * EELE 465, Project 4
+ * Gabby and Iker
+ *
+ * Target device: MSP430FR2355 Master
+ */
+
+//----------------------------------------------------------------------
+// Headers
+//----------------------------------------------------------------------
 #include <msp430.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -5,11 +15,11 @@
 #include "C:\Users\gabri\Documents\Spring2025\EELE465\project04\project4-gabby-iker\controller\src\master_i2c.h"
 #include "C:\Users\gabri\Documents\Spring2025\EELE465\project04\project4-gabby-iker\controller\src\rgb_led.h"
 #include "C:\Users\gabri\Documents\Spring2025\EELE465\project04\project4-gabby-iker\controller\src\heartbeat.h"
+//--End Headers---------------------------------------------------------
 
-
-
-
-//KEYPAD I/O DECLARATION
+//----------------------------------------------------------------------
+// Definitions
+//----------------------------------------------------------------------
 #define PROWDIR     P6DIR  // FORMERLY P1
 #define PROWREN     P6REN
 #define PROWIN      P6IN
@@ -22,21 +32,12 @@
 #define D5 BIT5  // P1.5 -> Data bit 5
 #define D6 BIT6  // P1.6 -> Data bit 6
 #define D7 BIT7  // P1.7 -> Data bit 7
-#define COL 4
-#define ROW 4
-
-//CONSTANTS DECLARATION
-#define COL 4
-#define ROW 4
 #define TABLE_SIZE 4
+//--End Definitions-----------------------------------------------------
 
-//END CONSTANTS DECLARATION
-
-void debounce() {
-    volatile unsigned int i;
-    for (i = 20000; i > 0; i--) {}
-}
-
+//----------------------------------------------------------------------
+// Variables
+//----------------------------------------------------------------------
 char real_code[] = {'3','9','4','D'};
 
 char keypad[ROW][COL] = {
@@ -47,8 +48,20 @@ char keypad[ROW][COL] = {
 };
 
 int lockState = 3;
+//--End Variables-------------------------------------------------------
 
-// Function ton initialaize the ports
+//----------------------------------------------------------------------
+// Begin Debounce
+//----------------------------------------------------------------------
+void debounce() {
+    volatile unsigned int i;
+    for (i = 20000; i > 0; i--) {}
+}
+//--End Debounce--------------------------------------------------------
+
+//----------------------------------------------------------------------
+// Begin Initializing Keypad Ports
+//----------------------------------------------------------------------
 void keypad_init() 
 {
     // Set rows as inputs (with pull-up)
@@ -60,7 +73,11 @@ void keypad_init()
     PCOLDIR |= BIT0 | BIT1 | BIT2 | BIT3; // Set P5.0, P5.1, P5.2 y P5.3 as outputs:
     PCOLOUT &= ~(BIT0 | BIT1 | BIT2 | BIT3);  // Set down the pins P5.0, P5.1, P5.2 y P5.3:
 }
+//--End Initialize Keypad-----------------------------------------------
 
+//----------------------------------------------------------------------
+// Begin Unlocking Routine
+//----------------------------------------------------------------------
 char keypad_unlocking(void)
 {
     int row, col;
@@ -92,7 +109,11 @@ char keypad_unlocking(void)
 
     return 0; // No key pressed
 }
+//--End Unlocking-------------------------------------------------------
 
+//----------------------------------------------------------------------
+// Begin Unlocked Routine
+//----------------------------------------------------------------------
 char keypad_unlocked(void)
 {
     char key_unlocked = '\0';
@@ -137,6 +158,11 @@ char keypad_unlocked(void)
     }
     return key_unlocked;
 }
+//--End Unlocked--------------------------------------------------------
+
+//----------------------------------------------------------------------
+// Begin Main
+//----------------------------------------------------------------------
 
 int main(void)
 {   
@@ -144,8 +170,8 @@ int main(void)
     char introduced_password[TABLE_SIZE], key, save_digit, key_unlocked; 
 
     keypad_init();
-    init_heartbeat();
-    init_rgb_led();
+    heartbeat_init();
+    rgb_led_init();
     master_i2c_init();
       
     while(true)
@@ -203,3 +229,4 @@ int main(void)
     }
     return 0;
 }
+//--End Main------------------------------------------------------------

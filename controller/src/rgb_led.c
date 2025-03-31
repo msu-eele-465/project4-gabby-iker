@@ -6,13 +6,13 @@
 #include "rgb_led.h"
 
 
-void Initialize_PinsRGB()
+void rgb_pins_init()
 {       
     P1DIR |= BIT5 | BIT6 | BIT7; // Set P1.5, P1.6 y P1.7 as an output 
     P1OUT |= BIT5 | BIT6 | BIT7; // Initialize outputs as high
 }
 
-void Initialize_Interrupts()
+void interrupts_init()
 {
     // Setup Timer B3
     TB3CTL |= TBCLR;        // Clear timer and dividers
@@ -64,17 +64,17 @@ void led_1da2c4(void)           // Blue
     TB3CCR3 = 196;             //CCR3=196  (Blue)
 }
 
-void init_rgb_led(void)
+void rgb_led_init(void)
 {
     WDTCTL = WDTPW | WDTHOLD;   // Stop watchdog timer
     PM5CTL0 &= ~LOCKLPM5;       // Turn on GPIO
 
-    Initialize_PinsRGB();
-    Initialize_Interrupts();
+    rgb_pins_init();
+    interrupts_init();
     led_c43e1d();
 }
 
-void continue_rgb_led(int lockState)
+void rgb_led_init(int lockState)
 {
     switch (lockState) {
         case 0:                 // Unlocking, set yellow
@@ -90,13 +90,16 @@ void continue_rgb_led(int lockState)
     }
 }
 
+//----------------------------------------------------------------------
+// Begin Interrupt Service Routine
+//----------------------------------------------------------------------
 #pragma vector = TIMER3_B0_VECTOR
 __interrupt void ISR_TB3_CCR0(void)
 {
     P1OUT |= BIT5 | BIT6 | BIT7;
     TB3CCTL0 &= ~CCIFG;
 }
-
+//----------------------------------------------------------------------
 // CCR1, CCR2, CCR3, and overflow interrupt combined
 #pragma vector = TIMER3_B1_VECTOR
 __interrupt void ISR_TB3_CCRn(void)
@@ -122,3 +125,4 @@ __interrupt void ISR_TB3_CCRn(void)
         default: break;
     }
 }
+//--End Interrupt Service Routine---------------------------------------

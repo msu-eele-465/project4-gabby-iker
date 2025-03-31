@@ -1,1 +1,1 @@
-void init_heartbeat();
+void heartbeat_init();

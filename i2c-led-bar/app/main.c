@@ -2,6 +2,9 @@
 #include <msp430.h>
 #include <stdbool.h>
 
+//------------------------------------------------------------------------------
+// Definitions
+//------------------------------------------------------------------------------
 #define ledOn 0xFF
 #define ledOff 0
 #define ledPattern01_init 0b10101010
@@ -11,11 +14,15 @@
 #define ledPattern05_init 0b00000001
 #define ledPattern06_init 0b01111111
 #define ledPattern07_init 0b00000001
+#define SLAVE_ADDR  0x68                    // Slave I2C Address
 
-bool new_input_bool = true;
-bool pattern3_out = true;
-char key_cur;
-char key_prev = '\0';
+//------------------------------------------------------------------------------
+// Variables
+//------------------------------------------------------------------------------
+bool new_input_bool = true;                 // Initialize new input to true
+bool pattern3_out = true;                   // Start in/out pattern going out
+char key_cur;                               // Store key press
+char key_prev = '\0';                       // Initialize keypress to null
 int pattern1_cur;
 int pattern2_cur;
 int pattern3_cur;
@@ -28,19 +35,17 @@ bool pattern3_start = false;
 bool pattern4_start = false;
 bool pattern5_start = false;
 bool pattern6_start = false;
-unsigned int timing_base = 32768;
-int timing_adj;
-unsigned char ledPattern_state;
+unsigned int timing_base = 32768;           // 1 second
+int timing_adj;                             // + or - 0.5 seconds
+unsigned char ledPattern_state;             // Store LED pattern
+volatile unsigned char receivedData = 0;    // Recieved data
 
 //------------------------------------------------------------------------------
 // Begin I2C initialization
 //------------------------------------------------------------------------------
-#define SLAVE_ADDR  0x68                    // Slave I2C Address
-volatile unsigned char receivedData = 0;    // Recieved data
-
-void I2C_Slave_Init(void)
+void slave_i2c_init(void)
 {
-    WDTCTL = WDTPW | WDTHOLD;  // Stop Watchdog Timer
+    WDTCTL = WDTPW | WDTHOLD;           // Stop Watchdog Timer
 
     // Configure P1.2 as SDA and P1.3 as SCL
     P1SEL1 &= ~(BIT2 | BIT3);
@@ -78,16 +83,12 @@ void init_led_bar()
     TB1CTL |= TBCLR;            // Clear timers and dividers
     TB1CTL |= TBSSEL__ACLK;     // Source = ACLK
     TB1CTL |= MC__UP;           // Mode = UP
-    TB1CCR0 = timing_base;      // CCR0 = 32768 (1s overflow)
-    // 8192 = 0.25 seconds
+    TB1CCR0 = timing_base;      // CCR0 = default 1 second
 
     // Setup Timer Compare IRQ
     TB1CCTL0 &= ~CCIFG;         //Clear CCR0 Flag
     TB1CCTL0 |= CCIE;           // Enable TB0 CCR0 Overflow IRQ
     __enable_interrupt();       // Enable Maskable IRQ
-
-    // Disable the GPIO power-on default high-impedance mode to activate
-    // previously configure port settings
     PM5CTL0 &= ~LOCKLPM5;
 }
 //--End LED Initialization------------------------------------------------------
@@ -102,10 +103,6 @@ void init_status_indicator()
     TB0CTL |= TBSSEL__ACLK;     // Source = ACLK
     TB0CTL |= MC__UP;           // Mode = UP
     TB0CCR0 = 32768;            // CCR0 = 32768 (1s overflow)
-
-    // Setup Timer Compare IRQ
-    //TB0CCTL0 &= ~CCIFG;         //Clear CCR0 Flag
-    //TB0CCTL0 |= CCIE;           // Enable TB0 CCR0 Overflow IRQ
     __enable_interrupt();       // Enable Maskable IRQ
 }
 //--End Stat Ind Initialization-------------------------------------------------
@@ -117,7 +114,6 @@ void display_led_pattern()
 {
     P1OUT = ledPattern_state;
     P2OUT = (P2OUT & 0x3F) | ((ledPattern_state & 0x0C) << 4);
-
 }
 //--End Display LED Patterns----------------------------------------------------
 
@@ -230,7 +226,11 @@ void led_patterns(char key_cur)
     }
     display_led_pattern();
 }
+//--End LED Patterns------------------------------------------------------------
 
+//------------------------------------------------------------------------------
+// Begin Set LED Bar
+//------------------------------------------------------------------------------
 void set_led_bar(char key_input)
 {
     if (key_input == 'A') {
@@ -248,20 +248,25 @@ void set_led_bar(char key_input)
         led_patterns(key_cur);
     }
 }
+//--End Set LED Bar-------------------------------------------------------------
 
+//------------------------------------------------------------------------------
+// Begin Main
+//------------------------------------------------------------------------------
 int main(void)
 {
     init_led_bar();
     init_status_indicator();
-    I2C_Slave_Init();                   // Initialize the slave for I2C
+    slave_i2c_init();                   // Initialize the slave for I2C
     __bis_SR_register(LPM0_bits + GIE); // Enter LPM0, enable interrupts
     return 0;
 }
-
+//--End Main--------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
 // Begin Interrupt Service Routines
 //------------------------------------------------------------------------------
+// Timer for pattern
 #pragma vector = TIMER1_B0_VECTOR
 __interrupt void ISR_TB1_CCR0(void)
 {
@@ -269,14 +274,17 @@ __interrupt void ISR_TB1_CCR0(void)
     TB1CCTL0 &= ~CCIFG;
 }
 //------------------------------------------------------------------------------
+// Interrupt for Status LED (currently not working)
+// ToDo: Fix status LED
 #pragma vector = TIMER0_B0_VECTOR
 __interrupt void ISR_TB0_CCR0(void)
 {
-    P2OUT &= ~BIT0;                 // Turn off status indicator
+    P2OUT &= ~BIT0;              // Turn off status indicator
     TB0CCTL0 &= ~CCIFG;
     TB0CCTL0 &= ~CCIE;          // Disable TB0 interrupt until next I2C receive
 }
 //------------------------------------------------------------------------------
+// I2C Receive key press and set pattern
 #pragma vector = USCI_B0_VECTOR
 __interrupt void USCI_B0_ISR(void)
 {
@@ -284,8 +292,7 @@ __interrupt void USCI_B0_ISR(void)
     switch (__even_in_range(UCB0IV, USCI_I2C_UCTXIFG0))
     {
         case USCI_I2C_UCRXIFG0:         // Receive Interrupt
-            key_cur = UCB0RXBUF;
-            led_patterns(UCB0RXBUF);    // Read received data
+            set_led_bar(UCB0RXBUF);    // Read received data
             P2OUT |= BIT0;              // Turn on status indicator
             TB0CCTL0 &= ~CCIFG;         //Clear CCR0 Flag
             TB0CCTL0 |= CCIE;           // Enable TB0 interrupt

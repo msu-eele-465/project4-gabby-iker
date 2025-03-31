@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include "heartbeat.h"
 
-void init_heartbeat()
+void heartbeat_init()
 {
     // Stop watchdog timer
     WDTCTL = WDTPW | WDTHOLD;               // Stop watchdog timer
