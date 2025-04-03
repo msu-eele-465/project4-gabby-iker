@@ -138,7 +138,6 @@ char keypad_unlocked(void)
                         if (key_unlocked != 'D') {
                             master_i2c_send(key_unlocked, 0x068);
                             master_i2c_send(key_unlocked, 0x048);
-                            //set_led_bar(key_unlocked);
                         }
                         // Wait for key release
                         while ((PROWIN & (1 << row)) == 0);
@@ -148,7 +147,6 @@ char keypad_unlocked(void)
                             rgb_led_continue(3);  // Set LED to red when 'D' is pressed
                             master_i2c_send('D', 0x068);
                             master_i2c_send('D', 0x048);
-                            //set_led_bar('D');
                             return key_unlocked;
                         }
                     }
