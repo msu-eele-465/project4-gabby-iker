@@ -74,7 +74,7 @@ void rgb_led_init(void)
     led_c43e1d();
 }
 
-void rgb_led_init(int lockState)
+void rgb_led_continue(int lockState)
 {
     switch (lockState) {
         case 0:                 // Unlocking, set yellow

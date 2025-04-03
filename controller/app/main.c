@@ -32,6 +32,8 @@
 #define D5 BIT5  // P1.5 -> Data bit 5
 #define D6 BIT6  // P1.6 -> Data bit 6
 #define D7 BIT7  // P1.7 -> Data bit 7
+#define COL 4
+#define ROW 4
 #define TABLE_SIZE 4
 //--End Definitions-----------------------------------------------------
 
@@ -93,7 +95,7 @@ char keypad_unlocking(void)
             if ((PROWIN & (1 << row)) == 0) {  // We detect that the row is low
                 debounce();  // Wait to filter the bouncing
                 if ((PROWIN & (1 << row)) == 0) {  // Confirm that the key is pressed
-                    continue_rgb_led(0);                // Set LED to yellow
+                    rgb_led_continue(0);                // Set LED to yellow
                     char key = keypad[row][col];
                     // Wait until the key is released to avoid multiple readings 
                     while ((PROWIN & (1 << row)) == 0);
@@ -143,7 +145,7 @@ char keypad_unlocked(void)
                         PCOLOUT |= (1 << col);
 
                         if (key_unlocked == 'D') {
-                            continue_rgb_led(3);  // Set LED to red when 'D' is pressed
+                            rgb_led_continue(3);  // Set LED to red when 'D' is pressed
                             master_i2c_send('D', 0x068);
                             master_i2c_send('D', 0x048);
                             //set_led_bar('D');
@@ -204,7 +206,7 @@ int main(void)
         {
             printf("Correct Code!\n");
             counter = 0;
-            continue_rgb_led(1);            // Set LED to blue
+            rgb_led_continue(1);            // Set LED to blue
             for (i = 0; i < TABLE_SIZE; i++) 
             {
                 introduced_password[i] = 0;        
@@ -217,7 +219,7 @@ int main(void)
         {
             printf("Incorrect code. Try again.\n");
             counter = 0;  // Reinitiate counter to try again
-            continue_rgb_led(3);            // Set LED to red
+            rgb_led_continue(3);            // Set LED to red
             master_i2c_send('\0', 0x068);
             master_i2c_send('\0', 0x048);
             //led_patterns('\0');
