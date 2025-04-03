@@ -169,7 +169,7 @@ char keypad_unlocked(void)
 int main(void)
 {   
     int counter, i, equal;
-    char introduced_password[TABLE_SIZE], key, save_digit, key_unlocked; 
+    char introduced_password[TABLE_SIZE], key; 
 
     keypad_init();
     heartbeat_init();
